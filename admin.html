@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Problem Pulse Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: owner console. Sign-in card, then totals strip, then a ranked results table with expandable lead lists. */
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --ink:#16203A; --muted:#5B6680; --line:#D5DBE5;
+  --accent:#2948D6; --accent-ink:#FFFFFF; --heat:#E0861B; --good:#178A5B; --bad:#C2413A; --soft:#E3E8F7;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --body:"Public Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0F1424; --surface:#171E33; --ink:#E7ECF7; --muted:#97A2BC; --line:#29324C;
+  --accent:#7D95FF; --accent-ink:#0B1020; --heat:#F2A24B; --good:#4CC992; --bad:#F07A72; --soft:#1F2A4A; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+h1{font:800 clamp(26px,5vw,36px)/1 var(--display);margin:0;letter-spacing:-.02em}
+h1 span{color:var(--accent)}
+.who{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted);font-size:13px}
+.live{display:inline-flex;align-items:center;gap:6px;font:500 12px var(--mono)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.live.on .dot{background:var(--good)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.signin{max-width:440px;margin:40px auto 0;display:grid;gap:12px}
+.signin h2{font:600 22px var(--display);margin:0}
+input[type=email]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+button{font:600 14px var(--body);border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 13px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.danger{border-color:var(--bad);color:var(--bad)}
+button.small{padding:5px 10px;font-size:13px}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.muted{color:var(--muted)}
+.msg{font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{background:var(--surface);padding:12px 14px}
+.stat b{display:block;font:500 24px var(--mono);font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+td.rank{font-family:var(--mono);color:var(--muted)}
+td.text{max-width:360px;overflow-wrap:anywhere}
+tr:last-child td{border-bottom:0}
+.pill{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.pill.sig{color:var(--good);border-color:var(--good)}
+.pill.warm{color:var(--heat);border-color:var(--heat)}
+.leads{background:var(--bg);border-radius:10px;padding:10px 12px;margin-top:8px;display:grid;gap:6px}
+.leads ul{margin:0;padding-left:18px;font-family:var(--mono);font-size:13px}
+.acts{display:flex;flex-wrap:wrap;gap:6px}
+.empty{text-align:center;color:var(--muted);padding:28px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:20}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Problem <span>Pulse</span> · Admin</h1>
+    <div class="who" id="who" hidden>
+      <span class="live" id="live"><span class="dot"></span><span id="liveText">Connecting…</span></span>
+      <span>·</span><span id="meEmail"></span>
+      <button class="small" id="signOut" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <section class="card signin" id="signinBox" hidden>
+    <h2>Owner sign-in</h2>
+    <p class="muted">Enter your email. We'll send a one-time sign-in link. Only the owner email set in the database can see waitlist emails or remove posts.</p>
+    <form id="signinForm" style="display:grid;gap:10px">
+      <input type="email" id="email" required placeholder="you@example.com" autocomplete="email" aria-label="Email">
+      <button class="primary" type="submit" id="sendLink">Email me a sign-in link</button>
+    </form>
+    <p class="msg" id="signinMsg"></p>
+  </section>
+
+  <main id="dash" hidden style="display:grid;gap:18px">
+    <section class="stats" aria-label="Totals">
+      <div class="stat"><b id="tProblems">0</b><small>Problems</small></div>
+      <div class="stat"><b id="tUp">0</b><small>Upvotes</small></div>
+      <div class="stat"><b id="tPay">0</b><small>Would pay</small></div>
+      <div class="stat"><b id="tLeads">0</b><small>Waitlist emails</small></div>
+      <div class="stat"><b id="tSig">0</b><small>Build signals</small></div>
+    </section>
+    <p class="msg muted" id="ownerNote" hidden>You're signed in, but this account isn't the owner set in the database, so emails are hidden and posts can't be removed.</p>
+    <div class="tools">
+      <span class="muted" id="updated">Loading…</span>
+      <div class="acts">
+        <button type="button" id="refresh">Refresh</button>
+        <button type="button" id="csv">Download leads CSV</button>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Problem</th><th>Category</th>
+          <th class="num">Upvotes</th><th class="num">Would pay</th><th class="num">Emails</th>
+          <th>Status</th><th>Posted</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="rows"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const VOTE_GOAL = 20, PAY_GOAL = 10;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tt; const toast = m => { const t=$('toast'); t.textContent=m; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2600); };
+const cfg = window.PP_CONFIG || {};
+if (!window.supabase || !cfg.supabaseUrl) { document.body.innerHTML = '<p style="padding:20px">config.js is missing or the database library failed to load.</p>'; return; }
+const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+const state = { rows: [], leads: [], open: {}, confirmDel: null, isOwner: false };
+let channel = null, timer = null;
+
+/* ---------- auth ---------- */
+$('signinForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('email').value.trim();
+  $('sendLink').disabled = true; $('signinMsg').textContent = 'Sending…';
+  const redirect = location.origin + location.pathname;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect } });
+  $('sendLink').disabled = false;
+  $('signinMsg').textContent = error
+    ? 'Could not send the link: ' + error.message + '. Wait a minute and try again.'
+    : 'Check your inbox for a link from Supabase and open it in this browser. It can take a minute; check Spam too.';
+});
+$('signOut').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+
+sb.auth.onAuthStateChange((_ev, session) => show(session));
+sb.auth.getSession().then(({ data }) => show(data.session));
+
+let shownFor = undefined;
+function show(session){
+  const id = session ? session.user.id : null;
+  if (id === shownFor) return; shownFor = id;
+  $('signinBox').hidden = !!session; $('dash').hidden = !session; $('who').hidden = !session;
+  if (!session) { stopLive(); return; }
+  $('meEmail').textContent = session.user.email || '';
+  if (location.hash || location.search) history.replaceState(null, '', location.pathname);
+  load(); startLive();
+}
+
+/* ---------- data ---------- */
+async function load(){
+  const [p, m, w, o] = await Promise.all([
+    sb.from('problems').select('id,text,category,created_at').order('created_at', { ascending: false }).limit(1000),
+    sb.from('marks').select('problem_id,kind').limit(50000),
+    sb.from('waitlist').select('email,problem_id,created_at').order('created_at', { ascending: false }).limit(10000),
+    sb.rpc('pp_is_owner')
+  ]);
+  if (p.error || m.error) { setLive(false, 'Database error'); $('updated').textContent = 'Could not load data: ' + (p.error || m.error).message; return; }
+  state.isOwner = !o.error && o.data === true;
+  $('ownerNote').hidden = state.isOwner;
+  state.leads = w.error ? [] : w.data;
+  const counts = {};
+  m.data.forEach(r => { const c = counts[r.problem_id] ||= { up:0, pay:0 }; c[r.kind]++; });
+  const leadsBy = {};
+  state.leads.forEach(l => (leadsBy[l.problem_id] ||= []).push(l));
+  state.rows = p.data.map(r => ({
+    ...r, up: counts[r.id]?.up || 0, pay: counts[r.id]?.pay || 0, leads: leadsBy[r.id] || []
+  })).sort((a,b) => b.pay - a.pay || b.up - a.up || b.leads.length - a.leads.length);
+  render();
+  $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+function status(r){
+  if (r.up >= VOTE_GOAL && r.pay >= PAY_GOAL) return '<span class="pill sig">✅ Build signal</span>';
+  if (r.up >= VOTE_GOAL/2 || r.pay >= PAY_GOAL/2) return '<span class="pill warm">Warming up</span>';
+  return '<span class="pill">Gathering</span>';
+}
+
+function render(){
+  const R = state.rows;
+  $('tProblems').textContent = R.length;
+  $('tUp').textContent = R.reduce((s,r)=>s+r.up,0);
+  $('tPay').textContent = R.reduce((s,r)=>s+r.pay,0);
+  $('tLeads').textContent = state.isOwner ? new Set(state.leads.map(l=>l.email.toLowerCase())).size : '—';
+  $('tSig').textContent = R.filter(r => r.up >= VOTE_GOAL && r.pay >= PAY_GOAL).length;
+  if (!R.length) { $('rows').innerHTML = '<tr><td colspan="9" class="empty">No problems posted yet. Share your board link to start collecting responses.</td></tr>'; return; }
+  $('rows').innerHTML = R.map((r, i) => {
+    const open = state.open[r.id];
+    const leads = open ? `<div class="leads">
+        ${r.leads.length ? `<ul>${r.leads.map(l => `<li>${esc(l.email)} <span class="muted">· ${new Date(l.created_at).toLocaleDateString()}</span></li>`).join('')}</ul>
+        <div><button class="small" type="button" data-copy="${r.id}">Copy emails</button></div>`
+        : '<span class="muted">No emails yet for this problem.</span>'}
+      </div>` : '';
+    const del = !state.isOwner ? '' : state.confirmDel === r.id
+      ? `<button class="small danger" type="button" data-del-yes="${r.id}">Confirm delete</button><button class="small" type="button" data-del-no>Cancel</button>`
+      : `<button class="small" type="button" data-del="${r.id}">Delete</button>`;
+    return `<tr>
+      <td class="rank">${i+1}</td>
+      <td class="text">${esc(r.text)}${leads}</td>
+      <td>${esc(r.category)}</td>
+      <td class="num">${r.up}</td><td class="num">${r.pay}</td>
+      <td class="num">${state.isOwner ? r.leads.length : '—'}</td>
+      <td>${status(r)}</td>
+      <td>${new Date(r.created_at).toLocaleDateString()}</td>
+      <td><div class="acts">${state.isOwner ? `<button class="small" type="button" data-open="${r.id}">${open ? 'Hide emails' : 'Emails'}</button>` : ''}${del}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+$('rows').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.open) { state.open[b.dataset.open] = !state.open[b.dataset.open]; render(); }
+  else if (b.dataset.copy) {
+    const r = state.rows.find(x => x.id === b.dataset.copy);
+    const text = [...new Set(r.leads.map(l => l.email))].join(', ');
+    try { await navigator.clipboard.writeText(text); toast('Copied ' + r.leads.length + ' email(s)'); } catch { toast('Copy failed. Select the emails and copy them manually.'); }
+  }
+  else if (b.dataset.del) { state.confirmDel = b.dataset.del; render(); }
+  else if ('delNo' in b.dataset) { state.confirmDel = null; render(); }
+  else if (b.dataset.delYes) {
+    const { error } = await sb.from('problems').delete().eq('id', b.dataset.delYes);
+    state.confirmDel = null;
+    if (error) toast('Could not delete: ' + error.message); else { toast('Problem removed'); load(); }
+  }
+});
+
+$('refresh').addEventListener('click', load);
+$('csv').addEventListener('click', () => {
+  if (!state.isOwner) { toast('Only the owner account can export emails.'); return; }
+  const byId = Object.fromEntries(state.rows.map(r => [r.id, r]));
+  const q = s => '"' + String(s ?? '').replace(/"/g, '""') + '"';
+  const lines = [['email','problem','category','upvotes','would_pay','joined'].join(',')]
+    .concat(state.leads.map(l => { const r = byId[l.problem_id] || {}; return [q(l.email), q(r.text), q(r.category), r.up ?? '', r.pay ?? '', q(l.created_at)].join(','); }));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'problem-pulse-leads-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+/* ---------- live updates ---------- */
+function setLive(on, t){ $('live').classList.toggle('on', on); $('liveText').textContent = t; }
+let soon; const reload = () => { clearTimeout(soon); soon = setTimeout(load, 300); };
+function startLive(){
+  stopLive();
+  channel = sb.channel('pp-admin')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'problems' }, reload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'marks' }, reload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'waitlist' }, reload)
+    .subscribe(s => setLive(s === 'SUBSCRIBED', s === 'SUBSCRIBED' ? 'Live' : 'Reconnecting…'));
+  timer = setInterval(load, 30000);
+}
+function stopLive(){ if (channel) { sb.removeChannel(channel); channel = null; } clearInterval(timer); }
+})();
+</script>
+</body>
+</html>

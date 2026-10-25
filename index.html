@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Post problems you would pay to have solved. Upvote live.">
+<title>Problem Pulse</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a signal board. Live header strip, compose box, then a single column of problem "readings", each with its own validation meter. */
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --ink:#16203A; --muted:#5B6680; --line:#D5DBE5;
+  --accent:#2948D6; --accent-ink:#FFFFFF; --heat:#E0861B; --good:#178A5B; --soft:#E3E8F7;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1424; --surface:#171E33; --ink:#E7ECF7; --muted:#97A2BC; --line:#29324C;
+  --accent:#7D95FF; --accent-ink:#0B1020; --heat:#F2A24B; --good:#4CC992; --soft:#1F2A4A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1424; --surface:#171E33; --ink:#E7ECF7; --muted:#97A2BC; --line:#29324C;
+  --accent:#7D95FF; --accent-ink:#0B1020; --heat:#F2A24B; --good:#4CC992; --soft:#1F2A4A; color-scheme:dark}
+*{box-sizing:border-box}html{color-scheme:light}body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font:800 clamp(30px,6vw,44px)/1 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+.tag{color:var(--muted);margin:6px 0 0;max-width:52ch}
+.live{display:inline-flex;align-items:center;gap:8px;font:500 12px var(--mono);color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--surface);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.live.on .dot{background:var(--good);box-shadow:0 0 0 0 var(--good);animation:ping 1.8s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 60%,transparent)}100%{box-shadow:0 0 0 9px transparent}}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{background:var(--surface);padding:12px 14px}
+.stat b{display:block;font:500 22px var(--mono);font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,1fr)}}
+form.compose{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:10px}
+label.q{font:600 17px var(--display)}
+textarea,select,input[type=email]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{resize:vertical;min-height:72px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row select{flex:1 1 180px;width:auto}
+.hint{color:var(--muted);font-size:13px}
+button{font:600 14px var(--body);border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 14px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:13px;padding:5px 11px;border-radius:999px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#list{display:grid;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;grid-template-columns:auto 1fr;gap:14px}
+.card.signal{border-color:var(--good)}
+.vote{display:grid;justify-items:center;gap:2px;min-width:56px;padding:8px 6px}
+.vote b{font:500 20px var(--mono);font-variant-numeric:tabular-nums}
+.vote[aria-pressed=true]{background:var(--soft);border-color:var(--accent);color:var(--accent)}
+.body{min-width:0;display:grid;gap:8px}
+.text{font-size:16px;margin:0;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.pill{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:999px;border:1px solid var(--line)}
+.pill.warm{color:var(--heat);border-color:var(--heat)}
+.pill.sig{color:var(--good);border-color:var(--good)}
+.meters{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.meter small{display:flex;justify-content:space-between;font:500 11px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.track{height:6px;border-radius:3px;background:var(--soft);overflow:hidden}
+.fill{height:100%;background:var(--accent);transition:width .4s ease}
+.meter.pay .fill{background:var(--heat)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.pay[aria-pressed=true]{border-color:var(--heat);color:var(--heat)}
+.wl{display:flex;flex-wrap:wrap;gap:8px}
+.wl input{flex:1 1 200px;width:auto}
+.empty{border:1.5px dashed var(--line);border-radius:14px;padding:28px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font:600 18px var(--display);margin-bottom:4px}
+.note{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:20}
+footer{color:var(--muted);font-size:12px;text-align:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Problem <span>Pulse</span></h1>
+      <p class="tag">Post a problem you would pay to have solved. Upvote the ones you have too. When a problem hits 20 upvotes and 10 people willing to pay, it's worth building.</p>
+    </div>
+    <div class="live" id="live"><span class="dot"></span><span id="liveText">Connecting…</span></div>
+  </header>
+
+  <section class="stats" aria-label="Board totals">
+    <div class="stat"><b id="sProblems">0</b><small>Problems</small></div>
+    <div class="stat"><b id="sVotes">0</b><small>Upvotes</small></div>
+    <div class="stat"><b id="sPay">0</b><small>Would pay</small></div>
+    <div class="stat"><b id="sSignal">0</b><small>Build signals</small></div>
+  </section>
+
+  <form class="compose" id="compose">
+    <label class="q" for="pText">What problem wastes your time or money every week?</label>
+    <textarea id="pText" maxlength="200" placeholder="e.g. Finding a reliable electrician in my area takes 3–4 calls and nobody shows up on time"></textarea>
+    <div class="row">
+      <select id="pCat" aria-label="Category">
+        <option>Work</option><option>Money</option><option>Health</option><option>Home</option>
+        <option>Study</option><option>Local business</option><option>Farming</option><option>Other</option>
+      </select>
+      <button class="primary" type="submit" id="postBtn">Post problem</button>
+    </div>
+    <div class="hint"><span id="count">0</span>/200 · Describe the pain, not your solution.</div>
+  </form>
+
+  <p class="note" id="modeNote" hidden></p>
+
+  <div class="bar">
+    <div class="chips" id="sort" role="group" aria-label="Sort">
+      <button class="chip" type="button" data-sort="hot" aria-pressed="true">Hottest</button>
+      <button class="chip" type="button" data-sort="new" aria-pressed="false">Newest</button>
+      <button class="chip" type="button" data-sort="pay" aria-pressed="false">Most willing to pay</button>
+    </div>
+    <select id="filter" aria-label="Filter by category" style="width:auto">
+      <option value="">All categories</option>
+      <option>Work</option><option>Money</option><option>Health</option><option>Home</option>
+      <option>Study</option><option>Local business</option><option>Farming</option><option>Other</option>
+    </select>
+  </div>
+
+  <section id="list" aria-live="polite">
+    <div class="empty"><strong>No problems posted yet</strong>Be the first. Every post, upvote and "I'd pay" shows up for everyone instantly.</div>
+  </section>
+
+  <footer>Problem Pulse · validation board · thresholds: 20 upvotes + 10 would-pay = build signal</footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const VOTE_GOAL = 20, PAY_GOAL = 10;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch {} }
+};
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2600); }
+function ago(ts){ const s=(Date.now()-ts)/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+
+/* ---------- state ---------- */
+const state = { problems: [], counts: {}, mine: { up: {}, pay: {} }, sort: 'hot', filter: '', canWrite: true, openWl: null };
+let backend = null;
+
+/* ---------- Backend 1: inside Claude (shared live db + room presence) ---------- */
+async function claudeBackend(){
+  if (!window.claude || !window.claude.use) return null;
+  const db = await window.claude.use('db');
+  if (!db) return null;
+  const user = await window.claude.use('user');
+  const me = user ? await user.id() : null;
+  let can = user ? await user.can('data.write') : null;
+  const b = { kind: 'claude', me, canWrite: can !== false && !!me };
+  b.subscribe = (onProblems, onVotes) => {
+    db.collection('problems').orderBy('createdAt','desc').limit(500).onSnapshot(s => {
+      onProblems(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, e => setLive(false, 'Offline'));
+    db.collection('votes').limit(1000).onSnapshot(s => {
+      onVotes(s.docs.map(d => ({ id: d.id, ...d.data() })), me);
+    }, () => {});
+  };
+  b.addProblem = async (p) => { await db.collection('problems').add({ ...p, createdAt: Date.now(), author: me }); };
+  let q = Promise.resolve();
+  b.saveMine = (mine) => { q = q.then(() => db.doc('votes/' + me).set({ up: mine.up, pay: mine.pay, at: Date.now() })); return q; };
+  b.joinWaitlist = async (email, pid) => {
+    const ref = db.doc('waitlist/' + me);
+    const cur = await ref.get();
+    const probs = new Set((cur.exists && cur.data().problems) || []); probs.add(pid);
+    await ref.set({ email, problems: [...probs], at: Date.now() });
+  };
+  b.presence = async (cb) => {
+    const room = await window.claude.use('room');
+    if (!room) { cb(null); return; }
+    room.onPeers(ch => cb(ch.peers.length));
+    room.presence({ here: true }).catch(()=>{});
+  };
+  return b;
+}
+
+/* ---------- Backend 2: free hosting + Supabase (config.js sets window.PP_CONFIG) ---------- */
+async function supabaseBackend(){
+  const cfg = window.PP_CONFIG;
+  if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey || !window.supabase) return null;
+  const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  let me = store.get('pp_voter'); if (!me) { me = uid(); store.set('pp_voter', me); }
+  const b = { kind: 'supabase', me, canWrite: true };
+  b.subscribe = (onProblems, onVotes) => {
+    const load = async () => {
+      const [p, m] = await Promise.all([
+        sb.from('problems').select('id,text,category,created_at').order('created_at',{ascending:false}).limit(500),
+        sb.from('marks').select('problem_id,voter,kind').limit(20000)
+      ]);
+      if (p.error || m.error) { setLive(false,'Database error'); return; }
+      onProblems(p.data.map(r => ({ id: r.id, text: r.text, category: r.category, createdAt: Date.parse(r.created_at) })));
+      const byVoter = {};
+      m.data.forEach(r => { const v = byVoter[r.voter] ||= { id: r.voter, up:{}, pay:{} }; v[r.kind][r.problem_id] = 1; });
+      onVotes(Object.values(byVoter), me);
+    };
+    let t; const soon = () => { clearTimeout(t); t = setTimeout(load, 250); };
+    sb.channel('pp-data')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'problems' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'marks' }, soon)
+      .subscribe();
+    load(); setInterval(load, 30000);
+  };
+  b.addProblem = async (p) => { const r = await sb.from('problems').insert({ text: p.text, category: p.category }); if (r.error) throw r.error; };
+  b.toggle = async (pid, kind, on) => {
+    const r = on ? await sb.from('marks').insert({ problem_id: pid, voter: me, kind })
+                 : await sb.from('marks').delete().match({ problem_id: pid, voter: me, kind });
+    if (r.error) throw r.error;
+  };
+  b.joinWaitlist = async (email, pid) => { const r = await sb.from('waitlist').insert({ email, problem_id: pid }); if (r.error) throw r.error; };
+  b.presence = async (cb) => {
+    const ch = sb.channel('pp-room', { config: { presence: { key: me } } });
+    ch.on('presence', { event: 'sync' }, () => cb(Object.keys(ch.presenceState()).length))
+      .subscribe(s => { if (s === 'SUBSCRIBED') ch.track({ at: Date.now() }); });
+  };
+  return b;
+}
+
+/* ---------- Backend 3: demo mode (this browser, live across tabs) ---------- */
+function demoBackend(){
+  const KEY = 'pp_demo_v1';
+  const bc = 'BroadcastChannel' in window ? new BroadcastChannel('pp_demo') : null;
+  let me = store.get('pp_voter'); if (!me) { me = uid(); store.set('pp_voter', me); }
+  const read = () => { try { return JSON.parse(store.get(KEY)) || null; } catch { return null; } };
+  let data = read() || { problems: [], votes: {} };
+  const b = { kind: 'demo', me, canWrite: true };
+  let push = () => {};
+  const save = () => { store.set(KEY, JSON.stringify(data)); bc && bc.postMessage(1); push(); };
+  b.subscribe = (onP, onV) => {
+    push = () => { onP([...data.problems].sort((a,b)=>b.createdAt-a.createdAt)); onV(Object.entries(data.votes).map(([id,v])=>({id,...v})), me); };
+    bc && (bc.onmessage = () => { data = read() || data; push(); });
+    push();
+  };
+  b.addProblem = async (p) => { data.problems.push({ id: uid(), ...p, createdAt: Date.now() }); save(); };
+  b.saveMine = async (mine) => { data.votes[me] = { up: mine.up, pay: mine.pay }; save(); };
+  b.joinWaitlist = async () => {};
+  b.presence = async (cb) => cb(null);
+  return b;
+}
+
+/* ---------- render ---------- */
+function setLive(on, text){ $('live').classList.toggle('on', on); $('liveText').textContent = text; }
+
+function statusOf(c){
+  if (c.up >= VOTE_GOAL && c.pay >= PAY_GOAL) return ['sig','Build signal'];
+  if (c.up >= VOTE_GOAL/2 || c.pay >= PAY_GOAL/2) return ['warm','Warming up'];
+  return ['','Gathering'];
+}
+
+function render(){
+  const list = $('list');
+  let items = state.problems.filter(p => !state.filter || p.category === state.filter);
+  const c = id => state.counts[id] || { up: 0, pay: 0 };
+  if (state.sort === 'hot') items.sort((a,b) => (c(b.id).up + 2*c(b.id).pay) - (c(a.id).up + 2*c(a.id).pay) || b.createdAt - a.createdAt);
+  if (state.sort === 'pay') items.sort((a,b) => c(b.id).pay - c(a.id).pay || c(b.id).up - c(a.id).up);
+  if (state.sort === 'new') items.sort((a,b) => b.createdAt - a.createdAt);
+
+  let tv=0, tp=0, sig=0;
+  state.problems.forEach(p => { const k=c(p.id); tv+=k.up; tp+=k.pay; if (k.up>=VOTE_GOAL && k.pay>=PAY_GOAL) sig++; });
+  $('sProblems').textContent = state.problems.length; $('sVotes').textContent = tv; $('sPay').textContent = tp; $('sSignal').textContent = sig;
+
+  if (!items.length){
+    list.innerHTML = state.problems.length
+      ? '<div class="empty"><strong>Nothing in this category yet</strong>Pick another category or post the first one here.</div>'
+      : '<div class="empty"><strong>No problems posted yet</strong>Be the first. Every post, upvote and "I\'d pay" shows up for everyone instantly.</div>';
+    return;
+  }
+  const dis = state.canWrite ? '' : ' disabled';
+  list.innerHTML = items.map(p => {
+    const k = c(p.id), [cls, label] = statusOf(k);
+    const up = !!state.mine.up[p.id], pay = !!state.mine.pay[p.id];
+    const wl = state.openWl === p.id ? `
+      <form class="wl" data-wl="${p.id}">
+        <input type="email" id="wl-${p.id}" required placeholder="you@example.com" aria-label="Email for early access" value="${esc(store.get('pp_email')||'')}">
+        <button class="primary" type="submit">Notify me</button>
+      </form><div class="hint">Only the board owner sees emails. We'll contact you if someone builds this.</div>` : '';
+    return `<article class="card${cls==='sig'?' signal':''}">
+      <button class="vote" type="button" data-up="${p.id}" aria-pressed="${up}" aria-label="Upvote: I have this problem"${dis}>▲<b>${k.up}</b></button>
+      <div class="body">
+        <p class="text">${esc(p.text)}</p>
+        <div class="meta"><span class="pill ${cls}">${label}</span><span>${esc(p.category||'Other')}</span><span>·</span><span>${ago(p.createdAt)}</span></div>
+        <div class="meters">
+          <div class="meter"><small><span>Upvotes</span><span>${k.up}/${VOTE_GOAL}</span></small><div class="track"><div class="fill" style="width:${Math.min(100,k.up/VOTE_GOAL*100)}%"></div></div></div>
+          <div class="meter pay"><small><span>Would pay</span><span>${k.pay}/${PAY_GOAL}</span></small><div class="track"><div class="fill" style="width:${Math.min(100,k.pay/PAY_GOAL*100)}%"></div></div></div>
+        </div>
+        <div class="actions"><button class="pay" type="button" data-pay="${p.id}" aria-pressed="${pay}"${dis}>${pay ? '✓ I\'d pay for a fix' : 'I\'d pay for a fix'}</button></div>
+        ${wl}
+      </div>
+    </article>`;
+  }).join('');
+}
+
+/* ---------- interactions ---------- */
+async function toggle(pid, kind){
+  if (!state.canWrite) return;
+  const on = !state.mine[kind][pid];
+  const prev = JSON.parse(JSON.stringify(state.mine));
+  if (on) state.mine[kind][pid] = 1; else delete state.mine[kind][pid];
+  const cnt = state.counts[pid] ||= { up:0, pay:0 }; cnt[kind] += on ? 1 : -1;
+  if (kind === 'pay' && on) state.openWl = pid;
+  render();
+  try {
+    if (backend.toggle) await backend.toggle(pid, kind, on);
+    else await backend.saveMine(state.mine);
+  } catch (e) {
+    state.mine = prev; cnt[kind] -= on ? 1 : -1; render();
+    toast('Could not save that. Check your connection and try again.');
+  }
+}
+
+$('list').addEventListener('click', e => {
+  const u = e.target.closest('[data-up]'); if (u) return toggle(u.dataset.up, 'up');
+  const p = e.target.closest('[data-pay]'); if (p) return toggle(p.dataset.pay, 'pay');
+});
+$('list').addEventListener('submit', async e => {
+  const f = e.target.closest('[data-wl]'); if (!f) return;
+  e.preventDefault();
+  const email = f.querySelector('input').value.trim();
+  store.set('pp_email', email);
+  try { await backend.joinWaitlist(email, f.dataset.wl); state.openWl = null; render(); toast('You\'re on the list for this one.'); }
+  catch { toast('Could not join the list. Try again in a moment.'); }
+});
+$('pText').addEventListener('input', e => $('count').textContent = e.target.value.length);
+$('compose').addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = $('pText').value.trim();
+  if (text.length < 10) { toast('Add a bit more detail: at least 10 characters.'); return; }
+  if (!state.canWrite) return;
+  $('postBtn').disabled = true;
+  try { await backend.addProblem({ text, category: $('pCat').value }); $('pText').value=''; $('count').textContent='0'; toast('Posted. It\'s live for everyone.'); }
+  catch { toast('Could not post. Check your connection and try again.'); }
+  $('postBtn').disabled = false;
+});
+$('sort').addEventListener('click', e => {
+  const b = e.target.closest('[data-sort]'); if (!b) return;
+  state.sort = b.dataset.sort;
+  document.querySelectorAll('#sort .chip').forEach(x => x.setAttribute('aria-pressed', x === b));
+  render();
+});
+$('filter').addEventListener('change', e => { state.filter = e.target.value; render(); });
+setInterval(render, 60000);
+
+/* ---------- boot ---------- */
+async function boot(){
+  backend = (await claudeBackend().catch(()=>null)) || (await supabaseBackend().catch(()=>null)) || demoBackend();
+  state.canWrite = backend.canWrite;
+  const note = $('modeNote');
+  if (backend.kind === 'demo') { note.hidden = false; note.textContent = 'Demo mode: posts are saved in this browser only (live across your open tabs). Connect the free database in config.js to share the board with everyone.'; }
+  if (!state.canWrite) { note.hidden = false; note.textContent = 'You can browse the board. Posting and voting needs edit access from the board owner.'; $('postBtn').disabled = true; }
+  backend.subscribe(
+    probs => { state.problems = probs; render(); },
+    (votes, me) => {
+      const counts = {};
+      votes.forEach(v => {
+        Object.keys(v.up||{}).forEach(id => (counts[id] ||= {up:0,pay:0}).up++);
+        Object.keys(v.pay||{}).forEach(id => (counts[id] ||= {up:0,pay:0}).pay++);
+        if (v.id === me) state.mine = { up: {...(v.up||{})}, pay: {...(v.pay||{})} };
+      });
+      state.counts = counts; render();
+    }
+  );
+  setLive(true, backend.kind === 'demo' ? 'Demo · this browser' : 'Live');
+  backend.presence(n => { if (n) setLive(true, `Live · ${n} here now`); });
+}
+boot();
+})();
+</script>
+
+</body>
+</html>
